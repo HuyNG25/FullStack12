@@ -18,6 +18,7 @@ builder.Services.AddDbContext<ProjectDbContext>(options =>
     ));
 
 // ===== Dependency Injection =====
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IEventPublisher, ConsoleEventPublisher>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();

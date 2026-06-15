@@ -24,14 +24,20 @@ namespace ProjectMemberService.Services
 
         public async Task<ApiResponse<MemberResponseDto>> AddMemberAsync(Guid projectId, AddMemberDto dto, string operatorUserId)
         {
-            var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
                 return ApiResponse<MemberResponseDto>.Fail("Bạn không có quyền quản lý thành viên");
             
-            if (operatorMember.Role == MemberRole.Manager && (dto.Role == MemberRole.Owner || dto.Role == MemberRole.Manager))
-                return ApiResponse<MemberResponseDto>.Fail("Manager không có quyền thêm Manager hoặc Owner");
+            var isSystemAdmin = await _permissionService.IsSystemAdminAsync(operatorUserId);
+            if (!isSystemAdmin)
+            {
+                var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
+                if (operatorMember != null && operatorMember.Role == MemberRole.Manager && (dto.Role == MemberRole.Owner || dto.Role == MemberRole.Manager))
+                    return ApiResponse<MemberResponseDto>.Fail("Manager không có quyền thêm Manager hoặc Owner");
+            }
 
             if (await _context.ProjectMembers.AnyAsync(m => m.ProjectId == projectId && m.UserId == dto.UserId))
+
                 return ApiResponse<MemberResponseDto>.Fail("Người dùng đã là thành viên");
 
             var member = new ProjectMember
@@ -68,44 +74,58 @@ namespace ProjectMemberService.Services
 
         public async Task<ApiResponse<MemberResponseDto>> UpdateRoleAsync(Guid projectId, Guid memberId, UpdateMemberRoleDto dto, string operatorUserId)
         {
-            var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
                 return ApiResponse<MemberResponseDto>.Fail("Bạn không có quyền");
             var targetMember = await _context.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == projectId);
 
             if (targetMember == null) return ApiResponse<MemberResponseDto>.Fail("Không tìm thấy thành viên");
-            if (targetMember.Role == MemberRole.Owner) return ApiResponse<MemberResponseDto>.Fail("Không thể đổi quyền Owner");
 
-            if (operatorMember.Role == MemberRole.Manager)
+            var isSystemAdmin = await _permissionService.IsSystemAdminAsync(operatorUserId);
+            if (!isSystemAdmin)
             {
-                if (targetMember.Role == MemberRole.Owner || targetMember.Role == MemberRole.Manager || 
-                    dto.Role == MemberRole.Owner || dto.Role == MemberRole.Manager)
+                if (targetMember.Role == MemberRole.Owner) return ApiResponse<MemberResponseDto>.Fail("Không thể đổi quyền Owner");
+
+                var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
+                if (operatorMember != null && operatorMember.Role == MemberRole.Manager)
                 {
-                    return ApiResponse<MemberResponseDto>.Fail("Manager không có quyền can thiệp vào Manager/Owner");
+                    if (targetMember.Role == MemberRole.Owner || targetMember.Role == MemberRole.Manager || 
+                        dto.Role == MemberRole.Owner || dto.Role == MemberRole.Manager)
+                    {
+                        return ApiResponse<MemberResponseDto>.Fail("Manager không có quyền can thiệp vào Manager/Owner");
+                    }
                 }
             }
 
             targetMember.Role = dto.Role;
             await _context.SaveChangesAsync();
+
             
             return ApiResponse<MemberResponseDto>.Ok(MapToResponse(targetMember), "Cập nhật vai trò thành công");
         }
 
         public async Task<ApiResponse<bool>> RemoveMemberAsync(Guid projectId, Guid memberId, string operatorUserId)
         {
-            var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
                 return ApiResponse<bool>.Fail("Bạn không có quyền quản lý thành viên");
             var member = await _context.ProjectMembers.FirstOrDefaultAsync(m => m.Id == memberId && m.ProjectId == projectId);
 
             if (member == null) return ApiResponse<bool>.Fail("Không tìm thấy thành viên");
-            if (member.Role == MemberRole.Owner) return ApiResponse<bool>.Fail("Không thể xóa Owner");
 
-            if (operatorMember.Role == MemberRole.Manager && (member.Role == MemberRole.Manager || member.Role == MemberRole.Owner))
-                return ApiResponse<bool>.Fail("Manager không có quyền xóa Manager khác hoặc Owner");
+            var isSystemAdmin = await _permissionService.IsSystemAdminAsync(operatorUserId);
+            if (!isSystemAdmin)
+            {
+                if (member.Role == MemberRole.Owner) return ApiResponse<bool>.Fail("Không thể xóa Owner");
+
+                var operatorMember = await _permissionService.GetMemberAsync(projectId, operatorUserId);
+                if (operatorMember != null && operatorMember.Role == MemberRole.Manager && (member.Role == MemberRole.Manager || member.Role == MemberRole.Owner))
+                    return ApiResponse<bool>.Fail("Manager không có quyền xóa Manager khác hoặc Owner");
+            }
 
             _context.ProjectMembers.Remove(member);
             await _context.SaveChangesAsync();
+
 
             return ApiResponse<bool>.Ok(true, "Xóa thành viên thành công");
         }

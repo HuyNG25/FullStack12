@@ -9,12 +9,15 @@ namespace ProjectMemberService.Services
     {
         private readonly ProjectDbContext _context;
         private readonly ILogger<ProjectService> _logger;
+        private readonly IPermissionService _permissionService;
 
-        public ProjectService(ProjectDbContext context, ILogger<ProjectService> logger)
+        public ProjectService(ProjectDbContext context, ILogger<ProjectService> logger, IPermissionService permissionService)
         {
             _context = context;
             _logger = logger;
+            _permissionService = permissionService;
         }
+
 
         public async Task<ApiResponse<ProjectResponseDto>> CreateAsync(CreateProjectDto dto, string userId)
         {
@@ -149,12 +152,13 @@ namespace ProjectMemberService.Services
                 return ApiResponse<ProjectResponseDto>.Fail("Không tìm thấy dự án");
             }
 
-            // Kiểm tra quyền: chỉ Owner hoặc Manager mới được sửa
-            var member = project.Members.FirstOrDefault(m => m.UserId == userId);
-            if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Manager))
+            // Kiểm tra quyền: chỉ Owner hoặc Manager hoặc Admin hệ thống mới được sửa
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(id, userId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<ProjectResponseDto>.Fail("Bạn không có quyền chỉnh sửa dự án này");
             }
+
 
             if (dto.EndDate.HasValue && dto.EndDate.Value < dto.StartDate)
             {
@@ -187,12 +191,13 @@ namespace ProjectMemberService.Services
                 return ApiResponse<bool>.Fail("Không tìm thấy dự án");
             }
 
-            // Chỉ Owner mới được xóa
-            var member = project.Members.FirstOrDefault(m => m.UserId == userId);
-            if (member == null || member.Role != MemberRole.Owner)
+            // Chỉ Owner hoặc Admin hệ thống mới được xóa
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(id, userId, MemberRole.Owner);
+            if (!isAuthorized)
             {
                 return ApiResponse<bool>.Fail("Chỉ Owner mới có quyền xóa dự án");
             }
+
 
             _context.Projects.Remove(project);
             await _context.SaveChangesAsync();

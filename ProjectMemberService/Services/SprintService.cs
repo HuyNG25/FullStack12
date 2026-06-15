@@ -10,13 +10,17 @@ namespace ProjectMemberService.Services
         private readonly ProjectDbContext _context;
         private readonly ILogger<SprintService> _logger;
         private readonly IEventPublisher _eventPublisher;
+        private readonly IPermissionService _permissionService;
 
-        public SprintService(ProjectDbContext context, ILogger<SprintService> logger, IEventPublisher eventPublisher)
+        public SprintService(ProjectDbContext context, ILogger<SprintService> logger, 
+                             IEventPublisher eventPublisher, IPermissionService permissionService)
         {
             _context = context;
             _logger = logger;
             _eventPublisher = eventPublisher;
+            _permissionService = permissionService;
         }
+
 
         public async Task<ApiResponse<SprintResponseDto>> CreateAsync(Guid projectId, CreateSprintDto dto, string operatorUserId)
         {
@@ -27,13 +31,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<SprintResponseDto>.Fail("Bạn không có quyền quản trị sprint trong dự án này");
             }
+
 
             var startDate = dto.StartDate ?? DateTime.UtcNow;
             var endDate = dto.EndDate ?? startDate.AddDays(14); // Mặc định 2 tuần
@@ -113,13 +116,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<SprintResponseDto>.Fail("Bạn không có quyền quản trị sprint trong dự án này");
             }
+
 
             if (sprint.Status == SprintStatus.Completed)
             {
@@ -167,13 +169,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<SprintResponseDto>.Fail("Bạn không có quyền quản trị sprint trong dự án này");
             }
+
 
             if (sprint.Status != SprintStatus.Planning)
             {
@@ -221,13 +222,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<SprintResponseDto>.Fail("Bạn không có quyền quản trị sprint trong dự án này");
             }
+
 
             if (sprint.Status != SprintStatus.Active)
             {

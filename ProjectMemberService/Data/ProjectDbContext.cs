@@ -71,6 +71,66 @@ namespace ProjectMemberService.Data
                       .HasForeignKey(e => e.ProjectId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // ===== SEED DATA FOR DEMO =====
+            var demoProjectId = new Guid("11111111-1111-1111-1111-111111111111");
+
+            modelBuilder.Entity<Project>().HasData(new Project
+            {
+                Id = demoProjectId,
+                Name = "Dự án Demo Phân Quyền",
+                Description = "Dự án mẫu để chạy thử nghiệm các cấp bậc phân quyền (Owner, Manager, Member, Viewer, Admin)",
+                StartDate = new DateTime(2026, 1, 1),
+                EndDate = new DateTime(2026, 12, 31),
+                Color = "#4F46E5",
+                Status = ProjectStatus.Active,
+                CreatedBy = "owner-demo",
+                CreatedAt = new DateTime(2026, 1, 1),
+                UpdatedAt = new DateTime(2026, 1, 1)
+            });
+
+            modelBuilder.Entity<ProjectMember>().HasData(
+                new ProjectMember
+                {
+                    Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                    ProjectId = demoProjectId,
+                    UserId = "owner-demo",
+                    DisplayName = "Demo Project Owner",
+                    Email = "owner@demo.com",
+                    Role = MemberRole.Owner,
+                    JoinedAt = new DateTime(2026, 1, 1)
+                },
+                new ProjectMember
+                {
+                    Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                    ProjectId = demoProjectId,
+                    UserId = "manager-demo",
+                    DisplayName = "Demo Project Manager",
+                    Email = "manager@demo.com",
+                    Role = MemberRole.Manager,
+                    JoinedAt = new DateTime(2026, 1, 1)
+                },
+                new ProjectMember
+                {
+                    Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                    ProjectId = demoProjectId,
+                    UserId = "member-demo",
+                    DisplayName = "Demo Project Member",
+                    Email = "member@demo.com",
+                    Role = MemberRole.Member,
+                    JoinedAt = new DateTime(2026, 1, 1)
+                },
+                new ProjectMember
+                {
+                    Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                    ProjectId = demoProjectId,
+                    UserId = "viewer-demo",
+                    DisplayName = "Demo Project Viewer",
+                    Email = "viewer@demo.com",
+                    Role = MemberRole.Viewer,
+                    JoinedAt = new DateTime(2026, 1, 1)
+                }
+            );
         }
     }
 }

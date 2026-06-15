@@ -14,12 +14,15 @@ namespace ProjectMemberService.Services
     {
         private readonly ProjectDbContext _context;
         private readonly ILogger<MilestoneService> _logger;
+        private readonly IPermissionService _permissionService;
 
-        public MilestoneService(ProjectDbContext context, ILogger<MilestoneService> _logger)
+        public MilestoneService(ProjectDbContext context, ILogger<MilestoneService> _logger, IPermissionService permissionService)
         {
             _context = context;
             this._logger = _logger;
+            _permissionService = permissionService;
         }
+
 
         public async Task<ApiResponse<MilestoneResponseDto>> CreateAsync(Guid projectId, CreateMilestoneDto dto, string operatorUserId)
         {
@@ -30,13 +33,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<MilestoneResponseDto>.Fail("Bạn không có quyền quản lý milestone trong dự án này");
             }
+
 
             // Kiểm tra DueDate phải sau ngày bắt đầu dự án
             if (dto.DueDate < project.StartDate)
@@ -109,13 +111,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<MilestoneResponseDto>.Fail("Bạn không có quyền quản lý milestone trong dự án này");
             }
+
 
             // Kiểm tra DueDate phải sau ngày bắt đầu dự án
             if (dto.DueDate < milestone.Project.StartDate)
@@ -152,13 +153,12 @@ namespace ProjectMemberService.Services
             }
 
             // Kiểm tra quyền của người thực hiện
-            var operatorMember = await _context.ProjectMembers
-                .FirstOrDefaultAsync(m => m.ProjectId == projectId && m.UserId == operatorUserId);
-
-            if (operatorMember == null || (operatorMember.Role != MemberRole.Owner && operatorMember.Role != MemberRole.Manager))
+            var isAuthorized = await _permissionService.IsAuthorizedAsync(projectId, operatorUserId, MemberRole.Owner, MemberRole.Manager);
+            if (!isAuthorized)
             {
                 return ApiResponse<bool>.Fail("Bạn không có quyền quản lý milestone trong dự án này");
             }
+
 
             _context.Milestones.Remove(milestone);
             await _context.SaveChangesAsync();
