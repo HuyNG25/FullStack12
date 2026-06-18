@@ -70,6 +70,9 @@ using (var scope = app.Services.CreateScope())
         dbContext.Database.EnsureCreated();
         logger.LogInformation("Database connection established successfully.");
 
+        // Seed data
+        ProjectMemberService.Data.DataSeeder.Seed(dbContext);
+
 
     }
     catch (Exception ex)
